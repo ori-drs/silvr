@@ -1,0 +1,27 @@
+base:
+  method: "lidar-nerfacto"
+  data: "/home/docker_dev/data/hbac_maths_19/submap_2_cut_short_skip3.json"
+  vis: "wandb"
+  max_train_images: 200
+  max_eval_images: 30
+  cam_optimiser_mode: "off"
+  cam_opt_lf: 0.0006
+  max_num_iterations: 30001
+  steps_per_eval_image: 500
+  steps_per_eval_all_images: 70000
+
+lidar_nerf:
+  lidar_depth_loss_type: "DS_NERF_NEW"
+  depth_loss_mult: 10
+  normal_loss_mult: 0.001
+  is_euclidean_depth: false
+  depth_sigma: 0.001
+  should_decay_sigma: true
+  starting_depth_sigma: 0.01
+  sigma_decay_rate: 0.99985
+  save_pcd: false
+
+submap:
+  run_submap: false
+  data_main_folder: "/home/docker_dev/data/hbac_maths_19"
+  submap_folder: "/home/docker_dev/data/hbac_maths_19/submaps"

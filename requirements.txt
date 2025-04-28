@@ -1,0 +1,4 @@
+numpy
+nerfstudio==1.0.3
+pre-commit==3.0.0
+ruff==0.3.1

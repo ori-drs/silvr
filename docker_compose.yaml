@@ -1,0 +1,21 @@
+services:
+  silvr:
+    container_name: silvr_container
+    build:
+      dockerfile: Dockerfile
+      args:
+        - UID=${UID:-1000}
+        - GID=${GID:-1000}
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
+    runtime: nvidia
+    network_mode: "host"
+    tty: true
+    volumes:
+        - /home/yifu/data/nerfstudio:/home/docker_dev/data
+        - /home/yifu/workspace/silvr/:/home/docker_dev/silvr/
+        - /home/yifu/.netrc:/home/docker_dev/.netrc
+        - /home/yifu/.git:/home/docker_dev/.git
+    # command: python /home/docker_dev/silvr/train.py
+    

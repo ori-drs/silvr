@@ -1,0 +1,16 @@
+{
+    "[python]": {
+        "editor.formatOnSave": true,
+        "editor.formatOnPaste": false,
+        "editor.formatOnType": false,
+        "editor.codeActionsOnSave": {
+            "source.fixAll": "explicit",
+            "source.organizeImports": "explicit"
+          },
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        "files.autoSave": "afterDelay",
+        "files.autoSaveDelay": 1000
+    },
+    "editor.rulers": [120],
+    "ruff.format.args": ["--line-length", "120"],
+}
