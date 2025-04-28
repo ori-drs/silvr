@@ -13,7 +13,7 @@ pip install ninja git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindi
 Be careful if you have more than one GPUs. You might have to use `CUDA_VISIBLE_DEVICES=0`
 ### SiLVR
 ```
-make
+pip install -e .
 ```
 
 ## Quick Start
@@ -23,7 +23,7 @@ python train.py
 
 ## Docker
 ```
-make docker
+docker compose -f .docker/docker_compose.yaml run --build silvr
 ```
 
 ## Contributing
