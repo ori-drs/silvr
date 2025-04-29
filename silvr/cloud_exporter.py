@@ -81,7 +81,8 @@ def generate_point_cloud(
             with torch.no_grad():
                 ray_bundle, _ = pipeline.datamanager.next_train(0)
                 assert isinstance(ray_bundle, RayBundle)
-                outputs = pipeline.model(ray_bundle)
+                with torch.autocast(pipeline.device.type, enabled=True):
+                    outputs = pipeline.model(ray_bundle)
             if rgb_output_name not in outputs:
                 CONSOLE.rule("Error", style="red")
                 CONSOLE.print(f"Could not find {rgb_output_name} in the model outputs", justify="center")
