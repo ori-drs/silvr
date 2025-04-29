@@ -43,12 +43,17 @@ class SubmapTrainingConfig:
     data_main_folder: str = "/home/yifu/data/silvr/hbac_maths"
     submap_folder: str = "/home/yifu/data/silvr/hbac_maths/submaps_vocab_tree_matcher_1024_True_50_1e-06_50_50"
 
+@dataclass
+class PostProcessConfig:
+    export_cloud: bool = False
 
 @dataclass
 class TrainingConfig:
     base: BaseTrainingConfig = field(default_factory=BaseTrainingConfig)
     lidar_nerf: LidarNerfTrainingConfig = field(default_factory=LidarNerfTrainingConfig)
     submap: SubmapTrainingConfig = field(default_factory=SubmapTrainingConfig)
+    post_process: PostProcessConfig = field(default_factory=PostProcessConfig)
+
 
     def __init__(self, yaml_path):
         with open(yaml_path, "r") as f:
@@ -56,6 +61,8 @@ class TrainingConfig:
         self.base = BaseTrainingConfig(**yaml_data["base"])
         self.lidar_nerf = LidarNerfTrainingConfig(**yaml_data["lidar_nerf"])
         self.submap = SubmapTrainingConfig(**yaml_data["submap"])
+        self.post_process = PostProcessConfig(**yaml_data["post_process"])
+
 
     def merge_config(self, base_config, lidar_nerf_config):
         config = asdict(base_config)
@@ -140,7 +147,7 @@ def run_silvr_submap(config, export_cloud=False, export_cloud_folder="exported_c
         config.base.data = str(new_json_path)
 
         run_silvr(config)
-        if export_cloud:
+        if config.post_process.export_cloud:
             data_folder = config.base.data if Path(config.base.data).is_dir() else Path(config.base.data).parent
             output_log_dir = config.base.output_dir / data_folder.name / config.base.method
             lastest_output_folder = sorted([x for x in output_log_dir.glob("*") if x.is_dir()])[-1]

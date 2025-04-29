@@ -25,3 +25,6 @@ submap:
   run_submap: true
   data_main_folder: "/home/docker_dev/data/2024-03-13-roq-01"
   submap_folder: "/home/docker_dev/data/2024-03-13-roq-01/submaps"
+
+post_process:
+  export_cloud: true
