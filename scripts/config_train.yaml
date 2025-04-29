@@ -1,6 +1,6 @@
 base:
   method: "lidar-nerfacto"
-  data: "/home/docker_dev/data/hbac_maths_19/submap_2_cut_short_skip3.json"
+  data: "/home/docker_dev/data/2024-03-13-roq-01/transforms_colmap_scaled_lidar.json"
   vis: "wandb"
   max_train_images: 200
   max_eval_images: 30
