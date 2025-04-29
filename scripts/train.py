@@ -162,7 +162,7 @@ def run_silvr_submap(config, export_cloud=False, export_cloud_folder="exported_c
 
 
 if __name__ == "__main__":
-    config = TrainingConfig("config_train.yaml")
+    config = TrainingConfig("/home/docker_dev/silvr/scripts/config_train.yaml")
     if not config.submap.run_submap:
         run_silvr(config)
     else:
