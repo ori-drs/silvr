@@ -23,24 +23,24 @@ class HFDatasetDownloader:
         except Exception as e:
             logger.error(f"Failed to load files: {str(e)}")
 
-    def download_from_remote_subfolder(self, subfolder: str):
+    def download(self, pattern: str):
         # Download the files from the subfolder using pattern "{subfolder}/*"
-        logger.info(f"Downloading from subfolder: {subfolder}")
+        logger.info(f"Download Pattern: {pattern}")
         snapshot_download(
             repo_id=self.repo_id,
-            allow_patterns=f"{subfolder}/*",
+            allow_patterns=pattern,
             local_dir=str(self.local_base_dir),
             repo_type="dataset",
         )
         logger.info(f"Downloaded files to {self.local_base_dir}")
 
         # unzip the downloaded files
-        zip_files = list((self.local_base_dir / subfolder).glob("*.zip"))
+        zip_files = list((self.local_base_dir).glob("*.zip"))
         for zip_file in zip_files:
             logger.info(f"Unzipping {zip_file}")
             shutil.unpack_archive(zip_file, extract_dir=zip_file.parent)
             zip_file.unlink()
-        logger.info(f'Subfolder "{subfolder}" saved to {self.local_base_dir}')
+        logger.info(f'Downloaded data saved to {self.local_base_dir}')
 
 
 if __name__ == "__main__":
@@ -48,6 +48,6 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
     local_dir = "/home/docker_dev/data"
-    silvr_hf_repo_id = "yifutao/silvr_data"
+    silvr_hf_repo_id = "ori-drs/silvr_data"
     downloader = HFDatasetDownloader(silvr_hf_repo_id, local_dir)
-    downloader.download_from_remote_subfolder("2023-02-24-bodleian")
+    downloader.download(pattern="2024-03-13-roq-01.zip")
