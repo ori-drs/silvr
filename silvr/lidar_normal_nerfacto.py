@@ -235,8 +235,8 @@ class LidarNormalNerfactoModel(LidarDepthNerfactoModel):
     def get_image_metrics_and_images(
         self, outputs: Dict[str, Tensor], batch: Dict[str, Tensor]
     ) -> Tuple[Dict[str, float], Dict[str, Tensor]]:
-        for key in outputs:
-            outputs[key] = outputs[key].to(self.device)
+        for key, value in outputs.items():
+            outputs[key] = value.to(self.device)
         metrics, images = super().get_image_metrics_and_images(outputs, batch)
         rendered_normal = self.normals_shader(outputs["normals"])
         rendered_normal = rendered_normal * outputs["accumulation"] + (1 - outputs["accumulation"])

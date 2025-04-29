@@ -441,7 +441,7 @@ def update_camera_path(camera_paths_file, T_new_old, new_camera_path_file=None):
         camera_path = json.load(f)
     for camera in camera_path["camera_path"]:
         c2w = np.array(camera["camera_to_world"]).reshape(4, 4)
-        if c2w[3] is not [0, 0, 0, 1]:
+        if c2w[3] != [0, 0, 0, 1]:
             c2w[3] = [0, 0, 0, 1]
         c2w_new = T_new_old @ c2w
         camera["camera_to_world"] = c2w_new.reshape(-1).tolist()
