@@ -43,9 +43,11 @@ class SubmapTrainingConfig:
     data_main_folder: str = "/home/yifu/data/silvr/hbac_maths"
     submap_folder: str = "/home/yifu/data/silvr/hbac_maths/submaps_vocab_tree_matcher_1024_True_50_1e-06_50_50"
 
+
 @dataclass
 class PostProcessConfig:
     export_cloud: bool = False
+
 
 @dataclass
 class TrainingConfig:
@@ -54,7 +56,6 @@ class TrainingConfig:
     submap: SubmapTrainingConfig = field(default_factory=SubmapTrainingConfig)
     post_process: PostProcessConfig = field(default_factory=PostProcessConfig)
 
-
     def __init__(self, yaml_path):
         with open(yaml_path, "r") as f:
             yaml_data = yaml.safe_load(f)
@@ -62,7 +63,6 @@ class TrainingConfig:
         self.lidar_nerf = LidarNerfTrainingConfig(**yaml_data["lidar_nerf"])
         self.submap = SubmapTrainingConfig(**yaml_data["submap"])
         self.post_process = PostProcessConfig(**yaml_data["post_process"])
-
 
     def merge_config(self, base_config, lidar_nerf_config):
         config = asdict(base_config)

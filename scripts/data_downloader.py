@@ -40,7 +40,7 @@ class HFDatasetDownloader:
             logger.info(f"Unzipping {zip_file}")
             shutil.unpack_archive(zip_file, extract_dir=zip_file.parent)
             zip_file.unlink()
-        logger.info(f'Downloaded data saved to {self.local_base_dir}')
+        logger.info(f"Downloaded data saved to {self.local_base_dir}")
 
 
 if __name__ == "__main__":
