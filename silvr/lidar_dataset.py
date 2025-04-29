@@ -60,9 +60,9 @@ def get_normal_image_from_path(
         graphics_to_colmap = torch.from_numpy(graphics_to_colmap).float()
         normal_world = rot @ graphics_to_colmap @ normal
         image = normal_world.permute(1, 0).reshape(image.shape)
-        assert torch.all(image <= 1.0 + 1e-5) and torch.all(
-            image >= -1.0 - 1e-5
-        ), f"{filepath}: {image.min()}-{image.max()}"
+        assert torch.all(image <= 1.0 + 1e-5) and torch.all(image >= -1.0 - 1e-5), (
+            f"{filepath}: {image.min()}-{image.max()}"
+        )
         masked_image = image * ~mask[..., None]
     return masked_image
 

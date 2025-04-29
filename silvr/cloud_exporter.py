@@ -102,9 +102,9 @@ def generate_point_cloud(
                     CONSOLE.print(f"Please set --normal_output_name to one of: {outputs.keys()}", justify="center")
                     sys.exit(1)
                 normal = outputs[normal_output_name]
-                assert (
-                    torch.min(normal) >= 0.0 and torch.max(normal) <= 1.0
-                ), "Normal values from method output must be in [0, 1]"
+                assert torch.min(normal) >= 0.0 and torch.max(normal) <= 1.0, (
+                    "Normal values from method output must be in [0, 1]"
+                )
                 normal = (normal * 2.0) - 1.0
             point = ray_bundle.origins + ray_bundle.directions * depth
             view_direction = ray_bundle.directions
@@ -122,9 +122,9 @@ def generate_point_cloud(
                 if crop_obb is None:
                     comp_l = torch.tensor(bounding_box_min, device=point.device)
                     comp_m = torch.tensor(bounding_box_max, device=point.device)
-                    assert torch.all(
-                        comp_l < comp_m
-                    ), f"Bounding box min {bounding_box_min} must be smaller than max {bounding_box_max}"
+                    assert torch.all(comp_l < comp_m), (
+                        f"Bounding box min {bounding_box_min} must be smaller than max {bounding_box_max}"
+                    )
                     mask = torch.all(torch.concat([point > comp_l, point < comp_m], dim=-1), dim=-1)
                 else:
                     mask = crop_obb.within(point)
