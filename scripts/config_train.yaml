@@ -22,6 +22,6 @@ lidar_nerf:
   save_pcd: false
 
 submap:
-  run_submap: false
-  data_main_folder: "/home/docker_dev/data/hbac_maths_19"
-  submap_folder: "/home/docker_dev/data/hbac_maths_19/submaps"
+  run_submap: true
+  data_main_folder: "/home/docker_dev/data/2024-03-13-roq-01"
+  submap_folder: "/home/docker_dev/data/2024-03-13-roq-01/submaps"
