@@ -1,4 +1,4 @@
-# SiLVR: Scalable Lidar-Visual NeRF Reconstruction (ICRA 2024)
+# SiLVR: Scalable Lidar-Visual NeRF Reconstruction
 <div align="center">
   <img src="./docs/rendering_roq.gif" alt="rendering gif">
 </div>
