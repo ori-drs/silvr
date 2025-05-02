@@ -1,10 +1,14 @@
-# SiLVR: Scalable Lidar-Visual Reconstruction with Neural Radiance Fields
-SiLVR is a large-scale reconstruction system fusing both lidar and vision based on Neural Radiance Field.
-![](./docs/rendering_roq.gif)
+# SiLVR: Scalable Lidar-Visual NeRF Reconstruction (ICRA 2024)
+<div align="center">
+  <img src="./docs/rendering_roq.gif" alt="rendering gif">
+</div>
+
 - [Project Page](https://ori-drs.github.io/projects/silvr/)
-- [ICRA Paper ](https://arxiv.org/abs/2403.06877)
+- [Paper](https://arxiv.org/abs/2403.06877)
 - [Video](https://www.youtube.com/watch?v=kA11bdMbhMo)
 
+## News
+(Jan 2025) An updated version with uncertainty estimation will be released. Meanwhile, you can access the new [paper](https://arxiv.org/abs/2502.02657) and the [video](https://www.youtube.com/watch?si=yREPN_90_kxuvwxn&v=AU6gvRFfCMQ&feature=youtu.be).
 ## Setup
 ### Docker
 Build a docker image to install dependencies and run SiLVR. 
@@ -40,4 +44,15 @@ python scripts/train.py
 We use [Ruff](https://github.com/astral-sh/ruff) as the formatter and linter. Install `pre-commit` will fix your code when you commit.
 ```
 pre-commit install
+```
+
+## Citation
+If you use this software package, please cite the our paper as 
+```
+@inproceedings{tao2024silvr,
+  title = {SiLVR: Scalable Lidar-Visual Reconstruction with Neural Radiance Fields for Robotic Inspection},
+  author = {Tao, Yifu and Bhalgat, Yash and Fu, Lanke Frank Tarimo and Mattamala, Matias and Chebrolu, Nived and Fallon, Maurice},
+  booktitle = {IEEE International Conference on Robotics and Automation (ICRA)},
+  year = {2024},
+}
 ```
