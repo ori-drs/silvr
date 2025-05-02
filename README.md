@@ -1,5 +1,6 @@
 # SiLVR: Scalable Lidar-Visual Reconstruction with Neural Radiance Fields
 SiLVR is a large-scale reconstruction system fusing both lidar and vision based on Neural Radiance Field.
+![](./docs/rendering_roq.gif)
 - [Project Page](https://ori-drs.github.io/projects/silvr/)
 - [ICRA Paper ](https://arxiv.org/abs/2403.06877)
 - [Video](https://www.youtube.com/watch?v=kA11bdMbhMo)
