@@ -48,7 +48,7 @@ pre-commit install
 ```
 
 ## Citation
-If you use this software package, please cite the our paper as 
+If you found this software package useful, please consider citing our paper as 
 ```
 @inproceedings{tao2024silvr,
   title = {SiLVR: Scalable Lidar-Visual Reconstruction with Neural Radiance Fields for Robotic Inspection},
