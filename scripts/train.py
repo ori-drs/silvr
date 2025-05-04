@@ -7,6 +7,16 @@ import yaml
 from nerfstudio.scripts.train import entrypoint
 from silvr.cloud_exporter import ExportPointCloudSiLVR
 
+import argparse
+def parse_args():
+    parser = argparse.ArgumentParser(description="Train SiLVR")
+    parser.add_argument(
+        "--config",
+        type=str,
+        default="/home/docker_dev/silvr/config/2024-03-13-roq-01.yaml",
+        help="Path to the config file",
+    )
+    return parser.parse_args()
 
 @dataclass
 class BaseTrainingConfig:
@@ -162,7 +172,8 @@ def run_silvr_submap(config, export_cloud=False, export_cloud_folder="exported_c
 
 
 if __name__ == "__main__":
-    config = TrainingConfig("/home/docker_dev/silvr/scripts/config_train.yaml")
+    args = parse_args()
+    config = TrainingConfig(args.config)
     if not config.submap.run_submap:
         run_silvr(config)
     else:

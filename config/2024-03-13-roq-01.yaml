@@ -6,7 +6,7 @@ base:
   max_eval_images: 30
   cam_optimiser_mode: "off"
   cam_opt_lf: 0.0006
-  max_num_iterations: 30001
+  max_num_iterations: 10001
   steps_per_eval_image: 500
   steps_per_eval_all_images: 70000
 

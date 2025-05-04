@@ -45,6 +45,7 @@ RUN pip install -r requirements.txt
 COPY ./silvr/ ${SILVR_DIR}/silvr
 COPY ./pyproject.toml ${SILVR_DIR}/pyproject.toml
 COPY ./scripts/ ${SILVR_DIR}/scripts
+COPY ./config/ ${SILVR_DIR}/config
 RUN pip install -e .
 # Make the outputs of the container match the host
 
