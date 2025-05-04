@@ -34,11 +34,15 @@ pip install -e .
 
 ## Running
 Download sample data from [Hugging face](https://huggingface.co/datasets/ori-drs/silvr_data/tree/main), setup the [config file](./scripts/config_train.yaml), and then run the training script.
-```
+```bash
 python scripts/data_downloader.py
-python scripts/train.py
+python scripts/train.py --config config/2024-03-13-roq-01.yaml
 ```
 
+To reproduce the [demo video](https://www.youtube.com/watch?v=9lYauDc5Df4&list=TLGGIUf8rfY28WUwNDA1MjAyNQ) which involves longer training on a bigger dataset, run the following training config.
+```bash
+python scripts/train.py --config config/2023-09-02-roq-hbac.yaml
+```
 
 
 ## Contributing

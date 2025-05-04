@@ -1,3 +1,4 @@
+import argparse
 import sys
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -7,7 +8,7 @@ import yaml
 from nerfstudio.scripts.train import entrypoint
 from silvr.cloud_exporter import ExportPointCloudSiLVR
 
-import argparse
+
 def parse_args():
     parser = argparse.ArgumentParser(description="Train SiLVR")
     parser.add_argument(
@@ -17,6 +18,7 @@ def parse_args():
         help="Path to the config file",
     )
     return parser.parse_args()
+
 
 @dataclass
 class BaseTrainingConfig:

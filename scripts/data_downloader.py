@@ -51,3 +51,4 @@ if __name__ == "__main__":
     silvr_hf_repo_id = "ori-drs/silvr_data"
     downloader = HFDatasetDownloader(silvr_hf_repo_id, local_dir)
     downloader.download(pattern="2024-03-13-roq-01.zip")
+    downloader.download(pattern="2023-09-02-roq-hbac.zip")
