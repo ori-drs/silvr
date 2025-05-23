@@ -83,7 +83,11 @@ class TrainingConfig:
         return config
 
     def update_argv(self, config):
-        assert sys.argv[0].endswith("train.py") and len(sys.argv) == 1, "No args should be provided."
+        if sys.argv[0].endswith("train.py"):
+            assert len(sys.argv) <= 3, "Only the config file should be provided."
+            assert sys.argv[1] == "--config"
+            sys.argv = [sys.argv[0]]
+        assert len(sys.argv) == 1, "No args should be provided."
         for k, v in config.items():
             if k == "method":
                 sys.argv.append(f"{v}")
