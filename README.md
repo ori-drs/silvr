@@ -3,13 +3,13 @@
   <img src="./docs/rendering_roq.gif" alt="rendering gif">
 </div>
 
-- [Project Page](https://ori-drs.github.io/projects/silvr/)
+- [Project Page](https://dynamic.robots.ox.ac.uk/projects/silvr/)
 - [Paper](https://arxiv.org/abs/2403.06877)
 - [Video](https://www.youtube.com/watch?v=kA11bdMbhMo)
 - [Dataset](https://dynamic.robots.ox.ac.uk/datasets/oxford-spires/)
 
 ## News
-(Jan 2025) An updated version with uncertainty estimation will be released. Meanwhile, you can access the new [paper](https://arxiv.org/abs/2502.02657) and the [video](https://www.youtube.com/watch?si=yREPN_90_kxuvwxn&v=AU6gvRFfCMQ&feature=youtu.be).
+(Sep 2025) SiLVR with uncertainty estimation has been accepted by theThe IEEE Transactions on Robotics (T-RO).Check out the new [paper](https://arxiv.org/abs/2502.02657) and the [video](https://www.youtube.com/watch?si=yREPN_90_kxuvwxn&v=AU6gvRFfCMQ&feature=youtu.be). New code will be released here.
 ## Setup
 ### Docker
 Build a docker image to install dependencies and run SiLVR. 
