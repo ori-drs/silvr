@@ -9,7 +9,9 @@
 - [Dataset](https://dynamic.robots.ox.ac.uk/datasets/oxford-spires/)
 
 ## News
-(Sep 2025) SiLVR with uncertainty estimation has been accepted by the IEEE Transactions on Robotics (T-RO).Check out the new [paper](https://arxiv.org/abs/2502.02657) and the [video](https://www.youtube.com/watch?si=yREPN_90_kxuvwxn&v=AU6gvRFfCMQ&feature=youtu.be). New code will be released here.
+(Sep 2025) SiLVR with uncertainty estimation has been accepted by the IEEE Transactions on Robotics (T-RO). 
+
+Check out the new [paper](https://arxiv.org/abs/2502.02657) and [video](https://www.youtube.com/watch?si=yREPN_90_kxuvwxn&v=AU6gvRFfCMQ&feature=youtu.be). New code will be released also here.
 ## Setup
 ### Docker
 Build a docker image to install dependencies and run SiLVR. 
