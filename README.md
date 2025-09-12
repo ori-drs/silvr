@@ -4,14 +4,12 @@
 </div>
 
 - [Project Page](https://dynamic.robots.ox.ac.uk/projects/silvr/)
-- [Paper](https://arxiv.org/abs/2403.06877)
-- [Video](https://www.youtube.com/watch?v=kA11bdMbhMo)
+- [T-RO 25 Paper](https://arxiv.org/abs/2502.02657), [ICRA 24 Paper](https://arxiv.org/abs/2403.06877)
+- [T-RO 25 Video](https://www.youtube.com/watch?si=yREPN_90_kxuvwxn&v=AU6gvRFfCMQ&feature=youtu.be), [ICRA 24 Video](https://www.youtube.com/watch?v=kA11bdMbhMo)
 - [Dataset](https://dynamic.robots.ox.ac.uk/datasets/oxford-spires/)
 
 ## News
-(Sep 2025) SiLVR with uncertainty estimation has been accepted by the IEEE Transactions on Robotics (T-RO). 
-
-Check out the new [paper](https://arxiv.org/abs/2502.02657) and [video](https://www.youtube.com/watch?si=yREPN_90_kxuvwxn&v=AU6gvRFfCMQ&feature=youtu.be). New code will be released also here.
+(Sep 2025) SiLVR with uncertainty estimation has been accepted by the [IEEE Transactions on Robotics (T-RO)](https://www.ieee-ras.org/publications/t-ro) and it will appear in the [Special Section on Visual SLAM](https://www.ieee-ras.org/publications/t-ro/special-issues/visual-slam). New code will be released also here.
 ## Setup
 ### Docker
 Build a docker image to install dependencies and run SiLVR. 
