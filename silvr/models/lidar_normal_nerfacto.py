@@ -13,8 +13,8 @@ from nerfstudio.field_components.spatial_distortions import SceneContraction
 from nerfstudio.fields.nerfacto_field import MLP, NerfactoField
 from nerfstudio.model_components.losses import orientation_loss, pred_normal_loss
 from nerfstudio.utils.external import tcnn
-from silvr.lidar_depth_nerfacto import LidarDepthNerfactoModel, LidarDepthNerfactoModelConfig
 from silvr.loss import monosdf_normal_loss
+from silvr.models.lidar_depth_nerfacto import LidarDepthNerfactoModel, LidarDepthNerfactoModelConfig
 
 
 class SiLVRMLPWithHashEncoding(MLPWithHashEncoding):
@@ -138,12 +138,14 @@ class LidarNormalNerfactoModel(LidarDepthNerfactoModel):
 
         rgb = self.renderer_rgb(rgb=field_outputs[FieldHeadNames.RGB], weights=weights)
         depth = self.renderer_depth(weights=weights, ray_samples=ray_samples)
+        expected_depth = self.renderer_expected_depth(weights=weights, ray_samples=ray_samples)
         accumulation = self.renderer_accumulation(weights=weights)
 
         outputs = {
             "rgb": rgb,
             "accumulation": accumulation,
             "depth": depth,
+            "expected_depth": expected_depth,
         }
         outputs["depth_metric_uint16"] = depth / self.config.dataparser_scale / self.config.depth_encoding
         outputs["density"] = field_outputs[FieldHeadNames.DENSITY]

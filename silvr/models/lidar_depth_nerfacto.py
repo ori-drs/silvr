@@ -10,14 +10,13 @@ import torch
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.model_components.losses import orientation_loss, pred_normal_loss
-from nerfstudio.model_components.renderers import DepthRenderer
 from nerfstudio.models.depth_nerfacto import DepthNerfactoModel, DepthNerfactoModelConfig
 from nerfstudio.models.nerfacto import NerfactoModel
 from nerfstudio.utils import colormaps
 from silvr.loss import LidarDepthLossType, lidar_depth_loss
-from silvr.utils import apply_depth_colormap
+from silvr.utils.colourmap import apply_depth_colormap
 
-silvr_path = Path(__file__).parent.parent
+silvr_path = Path(__file__).parent.parent.parent
 
 
 @dataclass
@@ -46,10 +45,6 @@ class LidarDepthNerfactoModel(DepthNerfactoModel):
     config: LidarDepthNerfactoModelConfig
     save_count = 0
 
-    def populate_modules(self):
-        super().populate_modules()
-        self.renderer_depth = DepthRenderer(method="expected")
-
     def get_outputs(self, ray_bundle: RayBundle):
         ray_samples, weights_list, ray_samples_list = self.proposal_sampler(ray_bundle, density_fns=self.density_fns)
         # not compute normal by default
@@ -60,12 +55,14 @@ class LidarDepthNerfactoModel(DepthNerfactoModel):
 
         rgb = self.renderer_rgb(rgb=field_outputs[FieldHeadNames.RGB], weights=weights)
         depth = self.renderer_depth(weights=weights, ray_samples=ray_samples)
+        expected_depth = self.renderer_expected_depth(weights=weights, ray_samples=ray_samples)
         accumulation = self.renderer_accumulation(weights=weights)
 
         outputs = {
             "rgb": rgb,
             "accumulation": accumulation,
             "depth": depth,
+            "expected_depth": expected_depth,
         }
         outputs["depth_metric_uint16"] = depth / self.config.dataparser_scale / self.config.depth_encoding
         outputs["density"] = field_outputs[FieldHeadNames.DENSITY]
@@ -106,6 +103,7 @@ class LidarDepthNerfactoModel(DepthNerfactoModel):
         # metrics_dict = super().get_metrics_dict(outputs, batch)
         if self.training:
             metrics_dict["depth_loss"] = 0.0
+            metrics_dict["expected_depth_loss"] = 0.0
             sigma = self._get_sigma().to(self.device)
             sigma *= self.config.dataparser_scale  # scale uncertaitny to dataparser scale
             termination_depth = batch["depth_image"].to(self.device)
@@ -116,7 +114,7 @@ class LidarDepthNerfactoModel(DepthNerfactoModel):
                     weights=outputs["weights_list"][i],
                     ray_samples=outputs["ray_samples_list"][i],
                     termination_depth=termination_depth,
-                    predicted_depth=outputs["depth"],
+                    predicted_depth=outputs["expected_depth"],
                     sigma=sigma,
                     directions_norm=outputs["directions_norm"],
                     is_euclidean=self.config.is_euclidean_depth,
@@ -124,6 +122,19 @@ class LidarDepthNerfactoModel(DepthNerfactoModel):
                     valid_depth_mask=valid_depth_mask,
                     sky_mask=sky_mask,
                     # depth_scale_factor=self.config.dataparser_scale,
+                ) / len(outputs["weights_list"])
+
+                metrics_dict["expected_depth_loss"] += lidar_depth_loss(
+                    weights=outputs["weights_list"][i],
+                    ray_samples=outputs["ray_samples_list"][i],
+                    termination_depth=termination_depth,
+                    predicted_depth=outputs["expected_depth"],
+                    sigma=sigma,
+                    directions_norm=outputs["directions_norm"],
+                    is_euclidean=self.config.is_euclidean_depth,
+                    depth_loss_type=LidarDepthLossType.MSE,
+                    valid_depth_mask=valid_depth_mask,
+                    sky_mask=sky_mask,
                 ) / len(outputs["weights_list"])
         return metrics_dict
 

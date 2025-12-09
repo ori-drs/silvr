@@ -15,6 +15,8 @@ class LidarDepthLossType(Enum):
     DS_NERF = 1
     URF = 2
     DS_NERF_NEW = 3
+    SILVR = 4
+    MSE = 5
 
 
 def ds_nerf_depth_loss_new(
@@ -51,6 +53,30 @@ def ds_nerf_depth_loss_new(
     masked_sum_sky_loss = sky_loss.sum(-2) * sky_mask
     loss = masked_sum_ds_loss + masked_sum_sky_loss
     return torch.mean(loss)
+
+
+def silvr_depth_loss(
+    weights: Float[Tensor, "*batch num_samples 1"],
+    termination_depth: Float[Tensor, "*batch 1"],
+    predicted_depth: Float[Tensor, "*batch 1"],
+    steps: Float[Tensor, "*batch num_samples 1"],
+    valid_depth_mask: Optional[Float[Tensor, "*batch num_samples 1"]] = None,
+    sky_mask: Optional[Float[Tensor, "*batch num_samples 1"]] = None,
+):
+    expected_depth_loss = (termination_depth - predicted_depth) ** 2
+    masked_expected_depth_loss = expected_depth_loss * valid_depth_mask
+    return torch.mean(masked_expected_depth_loss)
+
+
+def MSE_depth_loss(
+    termination_depth: Float[Tensor, "*batch 1"],
+    predicted_depth: Float[Tensor, "*batch 1"],
+    valid_depth_mask: Optional[Float[Tensor, "*batch num_samples 1"]] = None,
+    sky_mask: Optional[Float[Tensor, "*batch num_samples 1"]] = None,
+):
+    expected_depth_loss = (termination_depth - predicted_depth) ** 2
+    masked_expected_depth_loss = expected_depth_loss * valid_depth_mask
+    return torch.mean(masked_expected_depth_loss)
 
 
 def lidar_depth_loss(
@@ -91,9 +117,12 @@ def lidar_depth_loss(
     elif depth_loss_type == LidarDepthLossType.DS_NERF_NEW:
         lengths = ray_samples.frustums.ends - ray_samples.frustums.starts
         return ds_nerf_depth_loss_new(weights, termination_depth, steps, lengths, sigma, valid_depth_mask, sky_mask)
-    if depth_loss_type == LidarDepthLossType.URF:
+    elif depth_loss_type == LidarDepthLossType.URF:
         return urban_radiance_field_depth_loss(weights, termination_depth, predicted_depth, steps, sigma)
-
+    elif depth_loss_type == LidarDepthLossType.SILVR:
+        return silvr_depth_loss(weights, termination_depth, predicted_depth, steps, valid_depth_mask, sky_mask)
+    elif depth_loss_type == LidarDepthLossType.MSE:
+        return MSE_depth_loss(termination_depth, predicted_depth, valid_depth_mask, sky_mask)
     raise NotImplementedError("Provided depth loss type not implemented.")
 
 

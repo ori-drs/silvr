@@ -42,7 +42,7 @@ def get_normal_image_from_path(
         img_encoding = 255.0
         image = image.astype(np.float32) / img_encoding
         assert image.shape[2] == 3
-        assert image.shape[0] == height and image.shape[1] == width
+        assert image.shape[0] == height and image.shape[1] == width, f"{filepath}: {image.shape}, {height}, {width}"
 
         image = cv2.resize(image, (width, height), interpolation=interpolation)
 

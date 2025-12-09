@@ -33,24 +33,23 @@ RUN python -m pip install --no-cache-dir git+https://github.com/NVlabs/tiny-cuda
 
 ARG GID
 ARG UID
-ENV UNAME=docker_dev
-RUN addgroup --gid $GID $UNAME
-RUN adduser --disabled-password --gecos '' --uid $UID --gid $GID $UNAME
+ARG USERNAME
+RUN addgroup --gid $GID $USERNAME
+RUN adduser --disabled-password --gecos '' --uid $UID --gid $GID $USERNAME
 
-ARG SILVR_DIR=/home/docker_dev/silvr
-WORKDIR ${SILVR_DIR}
+ARG DOCKER_HOME_DIR
+ARG DOCKER_WORK_DIR
+WORKDIR ${DOCKER_WORK_DIR}
 
-COPY ./requirements.txt ${SILVR_DIR}/requirements.txt
+COPY ./requirements.txt ${DOCKER_WORK_DIR}/requirements.txt
 RUN pip install -r requirements.txt
-COPY ./silvr/ ${SILVR_DIR}/silvr
-COPY ./pyproject.toml ${SILVR_DIR}/pyproject.toml
-COPY ./scripts/ ${SILVR_DIR}/scripts
-COPY ./config/ ${SILVR_DIR}/config
+COPY ./silvr/ ${DOCKER_WORK_DIR}/silvr
+COPY ./pyproject.toml ${DOCKER_WORK_DIR}/pyproject.toml
 RUN pip install -e .
 # Make the outputs of the container match the host
 
-RUN chown -R ${UID}:${GID} ${SILVR_DIR}/*
-USER ${UNAME}
+RUN chown -R ${UID}:${GID} ${DOCKER_HOME_DIR}/*
+USER ${USERNAME}
 RUN echo "PS1='${debian_chroot:+($debian_chroot)}\[\033[01;33m\]\u@docker-\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '" >> ~/.bashrc
 
 CMD ["/bin/bash"]

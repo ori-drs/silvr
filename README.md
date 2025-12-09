@@ -16,6 +16,7 @@ Build a docker image to install dependencies and run SiLVR.
 ```
 docker compose -f .docker/docker_compose.yaml run --build silvr
 ```
+Note: You can use your own `CUDA_ARCHITECTURES` in the Dockerfile to make the `tinycudann` build quicker.
 ### Manual Installation
 You can also install SiLVR to your system manually.
 ```
@@ -33,6 +34,15 @@ pip install -e .
 
 
 ## Running
+### T-RO 25 Results
+```
+python scripts/data_downloader.py
+
+python scripts/main.py --config config/2024-03-13-roq-01-unc.yaml
+
+python scripts/main.py --config config/2024-bodleian-01+02-unc.yaml
+```
+### ICRA 24 Results
 Download sample data from [Hugging face](https://huggingface.co/datasets/ori-drs/silvr_data/tree/main), setup the [config file](./scripts/config_train.yaml), and then run the training script.
 ```bash
 python scripts/data_downloader.py
@@ -54,10 +64,10 @@ pre-commit install
 ## Citation
 If you found this software package useful, please consider citing our paper as 
 ```bibtex
-@inproceedings{tao2024silvr,
-  title = {SiLVR: Scalable Lidar-Visual Reconstruction with Neural Radiance Fields for Robotic Inspection},
-  author = {Tao, Yifu and Bhalgat, Yash and Fu, Lanke Frank Tarimo and Mattamala, Matias and Chebrolu, Nived and Fallon, Maurice},
-  booktitle = {IEEE International Conference on Robotics and Automation (ICRA)},
-  year = {2024},
+@article{tao2025silvr,
+  title={SiLVR: Scalable Lidar-Visual Radiance Field Reconstruction with Uncertainty Quantification},
+  author={Tao, Yifu and Fallon, Maurice},
+  journal={IEEE Transactions on Robotics}, 
+  year={2025},
 }
 ```

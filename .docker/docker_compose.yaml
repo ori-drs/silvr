@@ -7,15 +7,15 @@ services:
       args:
         - UID=${UID}
         - GID=${GID}
+        - USERNAME=${USERNAME}
+        - DOCKER_HOME_DIR=${DOCKER_HOME_DIR}
+        - DOCKER_WORK_DIR=${DOCKER_WORK_DIR}
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=all
     runtime: nvidia
     network_mode: "host"
     tty: true
-    # volumes:
-        # - /home/yifu/data:/home/docker_dev/data # mount the data folder
-        # - /home/yifu/workspace/silvr_public:/home/docker_dev/silvr # mount silvr folder to access the outputs and update the code
-        # - /home/yifu/.netrc:/home/docker_dev/.netrc # for wandb authentication
-
+    volumes:
+        - ${HOST_DATA_DIR}:${DOCKER_DATA_DIR}
     

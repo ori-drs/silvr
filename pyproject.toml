@@ -18,8 +18,11 @@ dependencies = {file = ["requirements.txt"]}
 # ndp = "silvr.test:main"
 
 [project.entry-points.'nerfstudio.method_configs']
-lidar_nerfacto = 'silvr.silvr_config:Lidar_nerfacto'
 lidar_depth_nerfacto = 'silvr.silvr_config:Lidar_depth_nerfacto'
+lidar_normal_nerfacto = 'silvr.silvr_config:Lidar_normal_nerfacto'
+bayes_nerfacto = 'silvr.silvr_config:Bayes_nerfacto'
+bayes_lidar_normal_nerfacto = 'silvr.silvr_config:Bayes_Lidar_normal_nerfacto'
+bayes_lidar_normal_nerfacto_big = 'silvr.silvr_config:Bayes_Lidar_normal_nerfacto_big'
 
 [project.optional-dependencies]
 style = [
