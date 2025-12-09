@@ -1,0 +1,53 @@
+base:
+  method: "bayes-lidar-normal-nerfacto"
+  data: "/home/docker_dev/silvr/data/2024-03-13-roq-01-tro/transforms_colmap_scaled_lidar.json" # This will be skipped if run_submap is true
+  vis: "wandb"
+  max_train_images: 500
+  max_eval_images: 30
+  cam_optimiser_mode: "off"
+  cam_opt_lf: 0.0006
+  max_num_iterations: 30001
+  steps_per_eval_image: 2000
+  steps_per_eval_all_images: 70000
+  output_dir: "/home/docker_dev/silvr/outputs"
+
+lidar_nerf:
+  lidar_depth_loss_type: "DS_NERF_NEW"
+  is_euclidean_depth: false
+  depth_loss_mult: 10
+  normal_loss_mult: 0.001
+  depth_sigma: 0.001
+  should_decay_sigma: true
+  starting_depth_sigma: 0.01
+  sigma_decay_rate: 0.99985
+  save_pcd: false
+
+post_process:
+  save_folder_name: "post_process"
+  compute_nvs_metrics: false
+  compute_uncertainty: true
+  unc_iterations: 1000
+  unc_grid_lod: 8
+  render_uncertainty: true
+  render_max_uncertainty_point_legacy: 1
+  render_downscale: 1
+  render_cam_path_with_submap: false
+  camera_path_file: ""
+  camera_path_model_folder_path: ""
+  export_cloud: true
+  export_cloud_suffix: ""
+  cloud_max_uncertainty_ray: 1
+  export_num_points: 1000000
+  evaluate_cloud: false
+  ground_truth_3d_map_path: "/home/docker_dev/silvr/data/2024-03-13-roq-01/gt_5cm_lidar_frame.pcd"
+  T_gt_nerf_path: ""
+
+only_post_process:
+  turn_on: false # if turned on, training will be skipped
+  output_folders:
+    # - "/home/yifu/workspace/silvr/outputs/hbac_maths_19/bayes-lidar-normal-nerfacto/2024-07-14_132335"
+
+submap:
+  run_submap: true
+  data_main_folder: "/home/docker_dev/silvr/data/2024-03-13-roq-01-tro"
+  submap_folder: "/home/docker_dev/silvr/data/2024-03-13-roq-01-tro/submaps_visibility"

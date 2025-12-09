@@ -1,7 +1,5 @@
-import json
 from typing import Optional
 
-import numpy as np
 import torch
 from jaxtyping import Float
 from matplotlib import cm
@@ -51,24 +49,3 @@ def apply_depth_colormap(
             colored_image = colored_image * accumulation + (1 - accumulation)
 
     return colored_image
-
-
-def load_dataparser_transform(path):
-    """Load the transform and scale from the dataparser_transforms.json file.
-    p_nerf = T_nerf_metric @ p_metric = scale @ transform @ p_metric
-    """
-    with open(path, "r") as f:
-        data_transforms = json.load(f)
-        transform = data_transforms["transform"]
-        transform = np.array(transform)
-        transform = np.vstack([transform, np.array([0, 0, 0, 1])])
-        scale = data_transforms["scale"]
-    return transform, scale
-
-
-def load_transformation_matrix(path):
-    transform, scale = load_dataparser_transform(path)
-    scaling_matrix = np.eye(4)
-    scaling_matrix[:3, :3] *= scale
-    T_nerf_metric = scaling_matrix @ transform
-    return T_nerf_metric

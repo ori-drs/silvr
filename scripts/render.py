@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from silvr.silvr_renderer import RenderCameraPath, merge_images, render_from_metric_traj, render_submaps
-from silvr.submap import CameraTrajNeRF, SubmapManager
+from silvr.submap.manager import CameraTrajNeRF, SubmapManager
 
 if __name__ == "__main__":
     nerfstudio_config = "/home/docker_dev/silvr/outputs/ori/lidar-depth-nerfacto/2024-02-29_232702/config.yml"
@@ -21,10 +21,12 @@ if __name__ == "__main__":
     )
 
     # submapping
+    trained_model_folder_path = "/home/yifu/workspace/silvr/outputs/hbac_maths/lidar-nerfacto/2024-01-24_144359"
+    camera_path = "/home/yifu/data/silvr/hbac_maths/camera_paths/2024-01-24-14-44-01.json"
     camera_path_model = CameraTrajNeRF(
-        trained_model_folder_path="/home/yifu/workspace/silvr/outputs/hbac_maths/lidar-nerfacto/2024-01-24_144359",
+        trained_model_folder_path=trained_model_folder_path,
         input_trajectory_path="",
-        camera_path="/home/yifu/data/silvr/hbac_maths/camera_paths/2024-01-24-14-44-01.json",
+        camera_path=camera_path,
     )
 
     submap_list = {
@@ -53,4 +55,10 @@ if __name__ == "__main__":
         filter_traj=True,
     )
     merged_folder = render_folder / "merged"
-    merge_images(camera_path_model, submap_manager, merged_folder, image_format=render_camera_path.image_format)
+    merge_images(
+        camera_path,
+        trained_model_folder_path,
+        submap_manager,
+        merged_folder,
+        image_format=render_camera_path.image_format,
+    )

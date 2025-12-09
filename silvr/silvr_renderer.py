@@ -1,4 +1,5 @@
 import json
+import logging
 import shutil
 import sys
 from contextlib import ExitStack
@@ -17,6 +18,7 @@ from rich.panel import Panel
 from rich.progress import BarColumn, Progress, TaskProgressColumn, TextColumn, TimeElapsedColumn, TimeRemainingColumn
 from rich.table import Table
 
+from nerfstudio.cameras.camera_paths import get_interpolated_camera_path, get_path_from_json
 from nerfstudio.cameras.cameras import Cameras, CameraType, RayBundle
 from nerfstudio.model_components import renderers
 from nerfstudio.pipelines.base_pipeline import Pipeline
@@ -25,14 +27,16 @@ from nerfstudio.scripts.render import (
     CropData,
     entrypoint,
     get_crop_from_json,
-    get_path_from_json,
     insert_spherical_metadata_into_file,
 )
 from nerfstudio.utils import colormaps, install_checks
 from nerfstudio.utils.eval_utils import eval_setup
 from nerfstudio.utils.rich_utils import CONSOLE, ItersPerSecColumn
 from nerfstudio.utils.scripts import run_command
-from silvr.utils import load_transformation_matrix
+from silvr.models.bayes_nerfacto import BayesNerfactoModel
+from silvr.utils.io import load_transformation_matrix
+
+logger = logging.getLogger(__name__)
 
 
 def _render_trajectory_video(
@@ -187,23 +191,39 @@ def _render_trajectory_video(
                         if rendered_output_name == "depth_metric_uint16":
                             output_image = output_image.cpu().numpy().astype(np.uint16)
                         else:
-                            output_image = (
-                                colormaps.apply_depth_colormap(
-                                    output_image,
-                                    accumulation=outputs["accumulation"],
-                                    near_plane=depth_near_plane,
-                                    far_plane=depth_far_plane,
-                                    colormap_options=colormap_options,
+                            if isinstance(pipeline.model, BayesNerfactoModel):
+                                output_image = (
+                                    colormaps.apply_colormap(image=output_image, colormap_options=colormap_options)
+                                    .cpu()
+                                    .numpy()
                                 )
-                                .cpu()
-                                .numpy()
-                            )
+                            else:  #! TODO check depth range
+                                output_image = (
+                                    colormaps.apply_depth_colormap(
+                                        output_image,
+                                        accumulation=outputs["accumulation"],
+                                        near_plane=depth_near_plane,
+                                        far_plane=depth_far_plane,
+                                        colormap_options=colormap_options,
+                                    )
+                                    .cpu()
+                                    .numpy()
+                                )
                     elif rendered_output_name == "normals":
                         output_image = pipeline.model.normals_shader(outputs["normals"]).cpu().numpy()
                         accum = outputs["accumulation"].cpu().numpy()
                         output_image = output_image * accum + (1 - accum)
                     elif rendered_output_name == "accumulation":
                         output_image = (outputs["accumulation"].cpu().numpy() * 255).astype(np.uint8)
+                    elif rendered_output_name == "uncertainty":
+                        output_image = (
+                            colormaps.apply_colormap(
+                                image=output_image,
+                                colormap_options=colormaps.ColormapOptions(colormap="viridis", normalize=False),
+                            )
+                            .cpu()
+                            .numpy()
+                        )
                     else:
                         output_image = (
                             colormaps.apply_colormap(
@@ -289,6 +309,14 @@ class RenderCameraPath(BaseRender):
     """Filename of the camera path to render."""
     output_format: Literal["images", "video"] = "images"
     """How to save output data."""
+    unc_path: Optional[Path] = None
+    """(Only for BayesNerfacto) Path to the uncertainty file if using Bayes Nerf."""
+    filter_out_point: bool = False
+    """(Only for BayesNerfacto) Whether to filter out renders with high uncertainty."""
+    filter_point_thresh: float = 0.1
+    """(Only for BayesNerfacto) Threshold for filtering out points with high uncertainty."""
+    background_colour: Literal["random", "last_sample", "black", "white"] = "white"
+    """(Only for BayesNerfacto) Background colour for the rendered images."""
 
     def main(self) -> None:
         """Main function."""
@@ -305,6 +333,11 @@ class RenderCameraPath(BaseRender):
         seconds = camera_path["seconds"]
         crop_data = get_crop_from_json(camera_path)
         camera_path = get_path_from_json(camera_path)
+
+        if isinstance(pipeline.model, BayesNerfactoModel):
+            pipeline.model.load_uncertainty(
+                self.unc_path, self.filter_out_point, self.filter_point_thresh, self.background_colour
+            )
 
         if (
             camera_path.camera_type[0] == CameraType.OMNIDIRECTIONALSTEREO_L.value
@@ -427,6 +460,74 @@ class RenderCameraPath(BaseRender):
                 CONSOLE.print("[bold green]Final VR180 Render Complete")
 
 
+@dataclass
+class RenderInterpolated(BaseRender):
+    """Render a trajectory that interpolates between training or eval dataset images."""
+
+    pose_source: Literal["eval", "train"] = "eval"
+    """Pose source to render."""
+    interpolation_steps: int = 10
+    """Number of interpolation steps between eval dataset cameras."""
+    order_poses: bool = False
+    """Whether to order camera poses by proximity."""
+    frame_rate: int = 24
+    """Frame rate of the output video."""
+    output_format: Literal["images", "video"] = "video"
+    """How to save output data."""
+    unc_path: Optional[Path] = None
+    """(Only for BayesNerfacto) Path to the uncertainty file if using Bayes Nerf."""
+    filter_out_point: bool = False
+    """(Only for BayesNerfacto) Whether to filter out renders with high uncertainty."""
+    filter_point_thresh: float = 0.1
+    """(Only for BayesNerfacto) Threshold for filtering out points with high uncertainty."""
+    background_colour: Literal["random", "last_sample", "black", "white"] = "white"
+    """(Only for BayesNerfacto) Background colour for the rendered images."""
+
+    def main(self) -> None:
+        """Main function."""
+        _, pipeline, _, _ = eval_setup(
+            self.load_config,
+            eval_num_rays_per_chunk=self.eval_num_rays_per_chunk,
+            test_mode="test",
+        )
+
+        install_checks.check_ffmpeg_installed()
+
+        if self.pose_source == "eval":
+            assert pipeline.datamanager.eval_dataset is not None
+            cameras = pipeline.datamanager.eval_dataset.cameras
+        else:
+            assert pipeline.datamanager.train_dataset is not None
+            cameras = pipeline.datamanager.train_dataset.cameras
+
+        seconds = self.interpolation_steps * len(cameras) / self.frame_rate
+        camera_path = get_interpolated_camera_path(
+            cameras=cameras,
+            steps=self.interpolation_steps,
+            order_poses=self.order_poses,
+        )
+        if isinstance(pipeline.model, BayesNerfactoModel):
+            pipeline.model.load_uncertainty(
+                self.unc_path, self.filter_out_point, self.filter_point_thresh, self.background_colour
+            )
+
+        _render_trajectory_video(
+            pipeline,
+            camera_path,
+            output_filename=self.output_path,
+            rendered_output_names=self.rendered_output_names,
+            rendered_resolution_scaling_factor=1.0 / self.downscale_factor,
+            seconds=seconds,
+            output_format=self.output_format,
+            image_format=self.image_format,
+            depth_near_plane=self.depth_near_plane,
+            depth_far_plane=self.depth_far_plane,
+            colormap_options=self.colormap_options,
+            render_nearest_camera=self.render_nearest_camera,
+            check_occlusions=self.check_occlusions,
+        )
+
+
 def update_camera_path(camera_paths_file, T_new_old, new_camera_path_file=None):
     """Transform camera path from old coordinate system to new coordinate system
     new_traj = T_new_old @ old_traj
@@ -441,8 +542,9 @@ def update_camera_path(camera_paths_file, T_new_old, new_camera_path_file=None):
         camera_path = json.load(f)
     for camera in camera_path["camera_path"]:
         c2w = np.array(camera["camera_to_world"]).reshape(4, 4)
-        if c2w[3] != [0, 0, 0, 1]:
-            c2w[3] = [0, 0, 0, 1]
+        if not np.allclose(c2w[3], [0, 0, 0, 1]):
+            raise ValueError("The camera_to_world matrix is not in the correct format.")
+            # c2w[3] = np.array([0, 0, 0, 1])
         c2w_new = T_new_old @ c2w
         camera["camera_to_world"] = c2w_new.reshape(-1).tolist()
     if new_camera_path_file is None:
@@ -452,7 +554,8 @@ def update_camera_path(camera_paths_file, T_new_old, new_camera_path_file=None):
 
 
 def merge_images(
-    camera_path_model,
+    camera_path,
+    camera_path_model_dataparser_transforms_path,
     submap_manager,
     output_dir,
     image_format="png",
@@ -461,13 +564,16 @@ def merge_images(
     accum_folder=None,
 ):
     output_dir = Path(output_dir)
+    if any(output_dir.glob(f"*.{image_format}")):
+        logger.warning(f"⚠️  Output directory {output_dir} already contains images. Removing them.")
+        shutil.rmtree(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    with open(camera_path_model.camera_path, "r", encoding="utf-8") as f:
+    with open(camera_path, "r", encoding="utf-8") as f:
         camera_paths = json.load(f)
 
     for i, camera in enumerate(camera_paths["camera_path"]):
         c2w = np.array(camera["camera_to_world"]).reshape(4, 4)
-        T_nerf_metric = load_transformation_matrix(camera_path_model.training_dataparser_transforms_path)
+        T_nerf_metric = load_transformation_matrix(camera_path_model_dataparser_transforms_path)
         c2w_metric = np.linalg.inv(T_nerf_metric) @ c2w
         submap_idx, dist_1 = submap_manager.get_i_nearest_submap(c2w_metric[:2, 3], i=0, return_dist=True)
         second_nearest_submap, dist_2 = submap_manager.get_i_nearest_submap(c2w_metric[:2, 3], i=1, return_dist=True)
@@ -487,8 +593,12 @@ def merge_images(
                 img = img * accum + 255 * (1 - accum)
             cv2.imwrite(str(output_dir / f"{i:05d}.{image_format}"), img)
         else:
+            render_file = submap_manager.submaps[submap_idx].render_folder_path / f"{i:05d}.{image_format}"
+            if not render_file.exists():
+                logger.warning(f"⚠️  Render file {render_file} does not exist. Skipping.")
+                continue
             shutil.copy(
-                submap_manager.submaps[submap_idx].render_folder_path / f"{i:05d}.{image_format}",
+                render_file,
                 output_dir / f"{i:05d}.{image_format}",
             )
             if accum_folder is not None:
@@ -519,6 +629,9 @@ def filter_traj_outside_submap(
         if current_submap_idx != submap_manager.get_i_nearest_submap(c2w[:2, 3]) and dist > tolerance:
             filtered_camera_path["camera_path"].remove(camera)
             remaining_indices.remove(i)
+    logger.info(f"📝 Remaining {len(filtered_camera_path['camera_path'])} / {len(camera_path['camera_path'])} frames.")
+    if len(filtered_camera_path["camera_path"]) == 0:
+        raise ValueError("No camera poses remain after filtering. Submap outside camera_path trajectory?")
     with open(camera_paths_file, "w", encoding="utf-8") as f:
         json.dump(filtered_camera_path, f, indent=4)
     save_filtered_indices_path = submap_manager.submaps[current_submap_idx].render_folder_path / indice_file_name
@@ -536,7 +649,7 @@ def rename_images(render_folder, indice_file_name="filtered_indices.json", image
     with open(indice_file_path, "r", encoding="utf-8") as f:
         remaining_indices = json.load(f)
     tmp_folder.mkdir(parents=True, exist_ok=True)
-    assert len(remaining_indices) == len(images)
+    assert len(remaining_indices) == len(images), f"Length mismatch: {len(remaining_indices)} vs {len(images)}"
     for i, idx in enumerate(remaining_indices):
         shutil.move(images[i], tmp_folder / f"{idx:05d}.{image_format}")
     shutil.move(indice_file_path, tmp_folder / indice_file_name)
@@ -572,6 +685,27 @@ def render_submaps(
         render_camera_path.main()
         if filter_traj:
             rename_images(trained_nerf_submap.render_folder_path)
+
+
+def transform_camera_path(
+    camera_paths_file,
+    camera_path_dataparser_transform_path,
+    currentmodel_dataparser_transform_path,
+    filter_traj=False,
+    submap_manager=None,
+    current_submap_idx=None,
+):
+    camera_paths_file = Path(camera_paths_file)
+    T_currentmodel_metric = load_transformation_matrix(currentmodel_dataparser_transform_path)
+    T_campathmodel_metric = load_transformation_matrix(camera_path_dataparser_transform_path)
+    T_metric_campathmodel = np.linalg.inv(T_campathmodel_metric)
+    new_camera_path_file = camera_paths_file.parent / (camera_paths_file.stem + "_transformed.json")
+    update_camera_path(camera_paths_file, T_metric_campathmodel, new_camera_path_file)
+    if filter_traj:
+        assert submap_manager is not None and current_submap_idx is not None
+        filter_traj_outside_submap(new_camera_path_file, submap_manager, current_submap_idx)
+    update_camera_path(new_camera_path_file, T_currentmodel_metric, new_camera_path_file)
+    return new_camera_path_file
 
 
 def render_from_metric_traj(render_camera_path, training_dataparser_transforms_path):

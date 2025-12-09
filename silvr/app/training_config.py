@@ -1,23 +1,10 @@
-import argparse
+import logging
 import sys
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
+from typing import List
 
-import yaml
-
-from nerfstudio.scripts.train import entrypoint
-from silvr.cloud_exporter import ExportPointCloudSiLVR
-
-
-def parse_args():
-    parser = argparse.ArgumentParser(description="Train SiLVR")
-    parser.add_argument(
-        "--config",
-        type=str,
-        default="/home/docker_dev/silvr/config/2024-03-13-roq-01.yaml",
-        help="Path to the config file",
-    )
-    return parser.parse_args()
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -32,7 +19,7 @@ class BaseTrainingConfig:
     max_num_iterations: int = 30001
     steps_per_eval_image: int = 500
     steps_per_eval_all_images: int = 70000
-    output_dir: Path = Path(__file__).absolute().parent / "outputs"
+    output_dir: Path = Path(__file__).absolute().parent.parent.parent / "outputs"
 
 
 @dataclass
@@ -50,51 +37,90 @@ class LidarNerfTrainingConfig:
 
 
 @dataclass
+class PostProcessConfig:
+    save_folder_name: str = "post_process"
+    compute_nvs_metrics: bool = False
+    compute_uncertainty: bool = False
+    unc_iterations: int = -1  # number of iterations when computing Hessian; -1 means detault from datamanager
+    unc_grid_lod: int = 8  # Uncertainty grid map resolution in terms of level of detail. Resolution= 2^lod
+    render_uncertainty: bool = False
+    render_max_uncertainty_point_legacy: float = 1  # 0-1, for render, lower is less points that are more accurate
+    render_downscale: float = 2  # for rendering's resolution. 1 is not downscaled, 2 is half resolution
+    render_cam_path_with_submap: bool = False
+    camera_path_file: str = ""  # optional camera path for rendering uncertainty
+    camera_path_model_folder_path: str = ""  # optional trained model folder path for camera path
+    cloud_max_uncertainty_point_legacy: float = 1  # 0-1, for exported cloud. filter points before rendering.
+    cloud_max_uncertainty_ray: float = 0.3  # 0-1, filter a rendered ray. For exporting cloud
+    export_cloud: bool = False
+    export_cloud_suffix: str = ""
+    export_num_points: int = 1000000
+    evaluate_cloud: bool = True
+    ground_truth_3d_map_path: str = ""
+    T_gt_nerf_path: str = ""
+
+
+@dataclass
+class OnlyPostProcessConfig:
+    turn_on: bool = False
+    output_folders: List[str] = field(default_factory=list)
+
+
+@dataclass
 class SubmapTrainingConfig:
     run_submap: bool = False
     data_main_folder: str = "/home/yifu/data/silvr/hbac_maths"
     submap_folder: str = "/home/yifu/data/silvr/hbac_maths/submaps_vocab_tree_matcher_1024_True_50_1e-06_50_50"
-
-
-@dataclass
-class PostProcessConfig:
     export_cloud: bool = False
+    compute_uncertainty: bool = True
+    render_uncertainty: bool = True
 
 
 @dataclass
 class TrainingConfig:
     base: BaseTrainingConfig = field(default_factory=BaseTrainingConfig)
     lidar_nerf: LidarNerfTrainingConfig = field(default_factory=LidarNerfTrainingConfig)
-    submap: SubmapTrainingConfig = field(default_factory=SubmapTrainingConfig)
     post_process: PostProcessConfig = field(default_factory=PostProcessConfig)
+    submap: SubmapTrainingConfig = field(default_factory=SubmapTrainingConfig)
 
-    def __init__(self, yaml_path):
-        with open(yaml_path, "r") as f:
-            yaml_data = yaml.safe_load(f)
+    def __init__(self, yaml_data):
         self.base = BaseTrainingConfig(**yaml_data["base"])
         self.lidar_nerf = LidarNerfTrainingConfig(**yaml_data["lidar_nerf"])
-        self.submap = SubmapTrainingConfig(**yaml_data["submap"])
         self.post_process = PostProcessConfig(**yaml_data["post_process"])
+        self.only_post_process = OnlyPostProcessConfig(**yaml_data["only_post_process"])
+        self.submap = SubmapTrainingConfig(**yaml_data["submap"])
+
+        if self.post_process.compute_uncertainty or self.post_process.render_uncertainty:
+            assert self.base.method in [
+                "bayes-nerfacto",
+                "bayes-lidar-normal-nerfacto",
+                "bayes-lidar-normal-nerfacto-big",
+            ], "Uncertainty can only be computed for bayes-nerfacto method."
 
     def merge_config(self, base_config, lidar_nerf_config):
         config = asdict(base_config)
-        if config["method"] in ["lidar-nerfacto", "lidar-depth-nerfacto"]:
+        if config["method"] in [
+            "lidar-normal-nerfacto",
+            "lidar-depth-nerfacto",
+            "bayes-lidar-normal-nerfacto",
+            "bayes-lidar-normal-nerfacto-big",
+        ]:
             config.update(asdict(lidar_nerf_config))
         return config
 
     def update_argv(self, config):
-        if sys.argv[0].endswith("train.py"):
-            assert len(sys.argv) <= 3, "Only the config file should be provided."
-            assert sys.argv[1] == "--config"
+        supported_files = ["main.py", "batch.py"]
+        assert Path(sys.argv[0]).name in supported_files, f"Unsupported file: {sys.argv[0]}"
+        if Path(sys.argv[0]).name == "main.py":
+            # remove the other arg parsers. TODO: refactor this code
             sys.argv = [sys.argv[0]]
-        assert len(sys.argv) == 1, "No args should be provided."
+        assert len(sys.argv) == 1, f"Extra args found: {sys.argv}"
         for k, v in config.items():
             if k == "method":
                 sys.argv.append(f"{v}")
             else:
                 sys.argv.append(f"--{k}")
                 sys.argv.append(f"{v}")
-        print(" ".join(sys.argv))
+        logger.info(" ".join(sys.argv))
 
     def clean_argv(self):
         sys.argv = [sys.argv[0]]
@@ -127,60 +153,3 @@ class TrainingConfig:
         config = self.merge_config(self.base, self.lidar_nerf)
         config = self.update_short_form(config)
         self.update_argv(config)
-
-
-def run_silvr(config):
-    config.set_args()
-    entrypoint()
-    config.clean_argv()
-
-
-def run_silvr_submap(config, export_cloud=False, export_cloud_folder="exported_clouds"):
-    """create symlinks from the submap_folder to data_main_folder.
-    This is because nerfstudio expects the transforms.json to be in the same folder as the images.
-    In our case, the submap jsons are not necessarily in the same folder as the images.
-    Therefore, we create symlinks to the submap jsons in the data_main_folder, and remove them after training.
-    Note that in rendering time, we will need to recreate the symlinks.
-
-    Args:
-    data_main_folder: the folder containing images, transforms.json
-    submap_folder: the folder containing submaps pose as json files
-    """
-    trajs = sorted(Path(config.submap.submap_folder).glob("*.json"))
-    assert len(trajs) > 0, f"No submaps found in {config.submap.submap_folder}."
-    print("Clean up old symlinks")
-    data_main_folder = Path(config.submap.data_main_folder)
-    for i, traj in enumerate(trajs):
-        new_json_path = data_main_folder / traj.name
-        if new_json_path.is_symlink():
-            new_json_path.unlink()
-        if new_json_path.exists():
-            raise RuntimeError(f"{new_json_path} already exists. Back up and delete it first.")
-
-    for i, traj in enumerate(trajs):
-        new_json_path = data_main_folder / traj.name
-        new_json_path.symlink_to(traj)
-        config.base.data = str(new_json_path)
-
-        run_silvr(config)
-        if config.post_process.export_cloud:
-            data_folder = config.base.data if Path(config.base.data).is_dir() else Path(config.base.data).parent
-            output_log_dir = config.base.output_dir / data_folder.name / config.base.method
-            lastest_output_folder = sorted([x for x in output_log_dir.glob("*") if x.is_dir()])[-1]
-            nerf_config = lastest_output_folder / "config.yml"
-            saved_cloud_name = f"submap_{i}_{lastest_output_folder.name}.ply"
-            export_cloud_folder = Path(export_cloud_folder)
-            export_cloud_silvr = ExportPointCloudSiLVR(
-                nerf_config, export_cloud_folder, normal_method="open3d", cloud_name=saved_cloud_name
-            )
-            export_cloud_silvr.run()
-        new_json_path.unlink()
-
-
-if __name__ == "__main__":
-    args = parse_args()
-    config = TrainingConfig(args.config)
-    if not config.submap.run_submap:
-        run_silvr(config)
-    else:
-        run_silvr_submap(config, export_cloud=False)

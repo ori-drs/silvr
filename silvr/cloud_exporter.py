@@ -23,6 +23,21 @@ from nerfstudio.pipelines.base_pipeline import Pipeline
 from nerfstudio.scripts.exporter import ExportPointCloud, validate_pipeline
 from nerfstudio.utils.eval_utils import eval_setup
 from nerfstudio.utils.rich_utils import CONSOLE
+from silvr.models.bayes_nerfacto import BayesNerfactoModel
+from silvr.uncertainty.compute_unc import set_seeds
+from silvr.utils.io import write_unc_ply
+
+
+def get_custom_mask(outputs, rgba, depth, min_accum: float = 0.98, max_unc: float = 1.0):
+    low_opacity_mask = rgba[..., -1] > 0.5
+    if "uncertainty" in outputs:
+        low_unc_mask = outputs["uncertainty"][..., 0] <= max_unc
+
+    accum_mask = (outputs["accumulation"] >= min_accum).squeeze(-1)
+
+    mask = accum_mask & low_opacity_mask
+    mask = mask & low_unc_mask if "uncertainty" in outputs else mask
+    return mask
 
 
 def generate_point_cloud(
@@ -39,6 +54,9 @@ def generate_point_cloud(
     bounding_box_max: Optional[Tuple[float, float, float]] = None,
     crop_obb: Optional[OrientedBox] = None,
     std_ratio: float = 10.0,
+    min_accum: float = 0.98,
+    has_unc: bool = False,
+    max_unc: float = 1.0,
 ) -> o3d.geometry.PointCloud:
     """Generate a point cloud from a nerf.
 
@@ -71,8 +89,10 @@ def generate_point_cloud(
     rgbs = []
     normals = []
     view_directions = []
+    uncertainties = []
     if use_bounding_box and (crop_obb is not None and bounding_box_max is not None):
         CONSOLE.print("Provided aabb and crop_obb at the same time, using only the obb", style="bold yellow")
+    set_seeds(1000)
     with progress as progress_bar:
         task = progress_bar.add_task("Generating Point Cloud", total=num_points)
         while not progress_bar.finished:
@@ -81,8 +101,7 @@ def generate_point_cloud(
             with torch.no_grad():
                 ray_bundle, _ = pipeline.datamanager.next_train(0)
                 assert isinstance(ray_bundle, RayBundle)
-                with torch.autocast(pipeline.device.type, enabled=True):
-                    outputs = pipeline.model(ray_bundle)
+                outputs = pipeline.model(ray_bundle)
             if rgb_output_name not in outputs:
                 CONSOLE.rule("Error", style="red")
                 CONSOLE.print(f"Could not find {rgb_output_name} in the model outputs", justify="center")
@@ -95,7 +114,6 @@ def generate_point_cloud(
                 sys.exit(1)
             rgba = pipeline.model.get_rgba_image(outputs, rgb_output_name)
             depth = outputs[depth_output_name]
-            accum_mask = (outputs["accumulation"] >= 0.98).squeeze(-1)
             if normal_output_name is not None:
                 if normal_output_name not in outputs:
                     CONSOLE.rule("Error", style="red")
@@ -109,15 +127,16 @@ def generate_point_cloud(
                 normal = (normal * 2.0) - 1.0
             point = ray_bundle.origins + ray_bundle.directions * depth
             view_direction = ray_bundle.directions
+            uncertainty = outputs["uncertainty"] if has_unc else None
 
-            # Filter points with opacity lower than 0.5
-            low_opacity_mask = rgba[..., -1] > 0.5
-            mask = accum_mask & low_opacity_mask
+            mask = get_custom_mask(outputs, rgba, depth, min_accum=min_accum, max_unc=max_unc)
             point = point[mask]
             view_direction = view_direction[mask]
             rgb = rgba[mask][..., :3]
             if normal is not None:
                 normal = normal[mask]
+            if uncertainty is not None:
+                uncertainty = uncertainty[mask]
 
             if use_bounding_box:
                 if crop_obb is None:
@@ -134,16 +153,21 @@ def generate_point_cloud(
                 view_direction = view_direction[mask]
                 if normal is not None:
                     normal = normal[mask]
+                if uncertainty is not None:
+                    uncertainty = uncertainty[mask]
 
             points.append(point)
             rgbs.append(rgb)
             view_directions.append(view_direction)
             if normal is not None:
                 normals.append(normal)
+            if uncertainty is not None:
+                uncertainties.append(uncertainty)
             progress.advance(task, point.shape[0])
     points = torch.cat(points, dim=0)
     rgbs = torch.cat(rgbs, dim=0)
     view_directions = torch.cat(view_directions, dim=0).cpu()
+    uncertainties = torch.cat(uncertainties, dim=0).cpu() if has_unc else None
 
     import open3d as o3d
 
@@ -159,6 +183,8 @@ def generate_point_cloud(
         CONSOLE.print("[bold green]:white_check_mark: Cleaning Point Cloud")
         if ind is not None:
             view_directions = view_directions[ind]
+            if has_unc:
+                uncertainties = uncertainties[ind]
 
     # either estimate_normals or normal_output_name, not both
     if estimate_normals:
@@ -184,29 +210,46 @@ def generate_point_cloud(
         normals[mask] *= -1
         pcd.normals = o3d.utility.Vector3dVector(normals.double().cpu().numpy())
 
+    if has_unc:
+        return pcd, uncertainties
     return pcd
 
 
 @dataclass
 class ExportPointCloudSiLVR(ExportPointCloud):
+    use_bounding_box: bool = False
+    """Not cropping by default"""
     rescale_to_input: bool = True
-    cloud_name: str = "point_cloud"
     """Whether to rescale the point cloud to the input trajectory."""
+    unc_file: str = "unc.npy"
+    """(Only for BayesNerfacto) Name of the uncertainty file in the model output directory."""
+    filter_out_point: bool = False
+    """(Only for BayesNerfacto) Whether to filter out renders with high uncertainty."""
+    filter_point_thresh: float = 0.1
+    """(Only for BayesNerfacto) Threshold for filtering out points with high uncertainty."""
+    filter_ray_thresh: float = 0.1
+    """(Only for BayesNerfacto) Threshold for filtering out rays with high uncertainty."""
+    cloud_name: str = "point_cloud"
+    """Name of the exported point cloud."""
+
+    def __post_init__(self):
+        if not self.output_dir.exists():
+            self.output_dir.mkdir(parents=True)
+
+        _, self.pipeline, _, _ = eval_setup(self.load_config)
 
     def run(self) -> None:
         """Export point cloud."""
 
-        if not self.output_dir.exists():
-            self.output_dir.mkdir(parents=True)
-
-        _, pipeline, _, _ = eval_setup(self.load_config)
-
-        validate_pipeline(self.normal_method, self.normal_output_name, pipeline)
+        is_bayes_nerf = isinstance(self.pipeline.model, BayesNerfactoModel)
+        if is_bayes_nerf:
+            self.pipeline.model.load_uncertainty(self.unc_file, self.filter_out_point, self.filter_point_thresh)
+        validate_pipeline(self.normal_method, self.normal_output_name, self.pipeline)
 
         # Increase the batchsize to speed up the evaluation.
-        assert isinstance(pipeline.datamanager, (VanillaDataManager, ParallelDataManager))
-        assert pipeline.datamanager.train_pixel_sampler is not None
-        pipeline.datamanager.train_pixel_sampler.num_rays_per_batch = self.num_rays_per_batch
+        assert isinstance(self.pipeline.datamanager, (VanillaDataManager, ParallelDataManager))
+        assert self.pipeline.datamanager.train_pixel_sampler is not None
+        self.pipeline.datamanager.train_pixel_sampler.num_rays_per_batch = self.num_rays_per_batch
 
         # Whether the normals should be estimated based on the point cloud.
         estimate_normals = self.normal_method == "open3d"
@@ -214,7 +257,7 @@ class ExportPointCloudSiLVR(ExportPointCloud):
         if self.obb_center is not None and self.obb_rotation is not None and self.obb_scale is not None:
             crop_obb = OrientedBox.from_params(self.obb_center, self.obb_rotation, self.obb_scale)
         pcd = generate_point_cloud(
-            pipeline=pipeline,
+            pipeline=self.pipeline,
             num_points=self.num_points,
             remove_outliers=self.remove_outliers,
             reorient_normals=self.reorient_normals,
@@ -227,13 +270,19 @@ class ExportPointCloudSiLVR(ExportPointCloud):
             bounding_box_max=self.bounding_box_max,
             crop_obb=crop_obb,
             std_ratio=self.std_ratio,
+            has_unc=is_bayes_nerf,
+            max_unc=self.filter_ray_thresh,
+            min_accum=0.5,
         )
+        if is_bayes_nerf:
+            pcd, uncertainties = pcd
+            uncertainties = uncertainties.numpy()
         if self.save_world_frame:
             # apply the inverse dataparser transform to the point cloud
             points = np.asarray(pcd.points)
             poses = np.eye(4, dtype=np.float32)[None, ...].repeat(points.shape[0], axis=0)[:, :3, :]
             poses[:, :3, 3] = points
-            poses = pipeline.datamanager.train_dataparser_outputs.transform_poses_to_original_space(
+            poses = self.pipeline.datamanager.train_dataparser_outputs.transform_poses_to_original_space(
                 torch.from_numpy(poses)
             )
             points = poses[:, :3, 3].numpy()
@@ -259,11 +308,22 @@ class ExportPointCloudSiLVR(ExportPointCloud):
                 pcd.transform(np.linalg.inv(transform))
             else:
                 raise RuntimeError("No data transforms found")
+        if is_bayes_nerf:
+            save_path = self.output_dir / f"{self.cloud_name}.ply"
+            write_unc_ply(
+                str(save_path),
+                np.asarray(pcd.points),
+                np.asarray(pcd.colors),
+                uncertainties,
+            )
+            print("Saved point cloud to", save_path)
+            return
         tpcd = o3d.t.geometry.PointCloud.from_legacy(pcd)
         # The legacy PLY writer converts colors to UInt8,
         # let us do the same to save space.
         tpcd.point.colors = (tpcd.point.colors * 255).to(o3d.core.Dtype.UInt8)  # type: ignore
         o3d.t.io.write_point_cloud(str(self.output_dir / f"{self.cloud_name}.ply"), tpcd)
+        print("Saved point cloud to", self.output_dir / f"{self.cloud_name}.ply")
         print("\033[A\033[A")
         CONSOLE.print("[bold green]:white_check_mark: Saving Point Cloud")
 
