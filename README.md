@@ -9,6 +9,8 @@
 - [Dataset](https://dynamic.robots.ox.ac.uk/datasets/oxford-spires/)
 
 ## News
+(Dec 2025) SiLVR 2.0 Code release for the T-RO version with epistemic uncertainty estimation.
+
 (Sep 2025) SiLVR with uncertainty estimation has been accepted by the [IEEE Transactions on Robotics (T-RO)](https://www.ieee-ras.org/publications/t-ro) and it will appear in the [Special Section on Visual SLAM](https://www.ieee-ras.org/publications/t-ro/special-issues/visual-slam). New code will be released also here.
 ## Setup
 ### Docker
