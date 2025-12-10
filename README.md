@@ -15,10 +15,17 @@
 ## Setup
 ### Docker
 Build a docker image to install dependencies and run SiLVR. 
+
 ```
+mkdir data outputs
 docker compose -f .docker/docker_compose.yaml run --build silvr
 ```
-Note: You can use your own `CUDA_ARCHITECTURES` in the Dockerfile to make the `tinycudann` build quicker.
+
+Tip 1: Update `UID` and `GID` in the `.docker/.env` to be the same as your system user ID (check by running `id` in the terminal) such that the host machine has proper permission to the `data` and `outputs` folders generated inside the docker.
+
+Tip 2: You can use your own `CUDA_ARCHITECTURES` in the Dockerfile to make the `tinycudann` build quicker.
+
+
 ### Manual Installation
 You can also install SiLVR to your system manually.
 ```
