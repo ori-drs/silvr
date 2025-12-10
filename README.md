@@ -40,9 +40,9 @@ pip install -e .
 ```
 python scripts/data_downloader.py
 
-python scripts/main.py --config config/2024-03-13-roq-01-unc.yaml
+python scripts/main.py --config configs/2024-03-13-roq-01-unc.yaml
 
-python scripts/main.py --config config/2024-bodleian-01+02-unc.yaml
+python scripts/main.py --config configs/2024-bodleian-01+02-unc.yaml
 ```
 ### ICRA 24 Results
 Download sample data from [Hugging face](https://huggingface.co/datasets/ori-drs/silvr_data/tree/main), setup the [config file](./scripts/config_train.yaml), and then run the training script.
