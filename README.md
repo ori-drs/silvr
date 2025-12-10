@@ -15,10 +15,17 @@
 ## Setup
 ### Docker
 Build a docker image to install dependencies and run SiLVR. 
+
 ```
+mkdir data outputs
 docker compose -f .docker/docker_compose.yaml run --build silvr
 ```
-Note: You can use your own `CUDA_ARCHITECTURES` in the Dockerfile to make the `tinycudann` build quicker.
+
+Tip 1: Update `UID` and `GID` in the `.docker/.env` to be the same as your system user ID (check by running `id` in the terminal) such that the host machine has proper permission to the `data` and `outputs` folders generated inside the docker.
+
+Tip 2: You can use your own `CUDA_ARCHITECTURES` in the Dockerfile to make the `tinycudann` build quicker.
+
+
 ### Manual Installation
 You can also install SiLVR to your system manually.
 ```
@@ -40,9 +47,9 @@ pip install -e .
 ```
 python scripts/data_downloader.py
 
-python scripts/main.py --config config/2024-03-13-roq-01-unc.yaml
+python scripts/main.py --config configs/2024-03-13-roq-01-unc.yaml
 
-python scripts/main.py --config config/2024-bodleian-01+02-unc.yaml
+python scripts/main.py --config configs/2024-bodleian-01+02-unc.yaml
 ```
 ### ICRA 24 Results
 Download sample data from [Hugging face](https://huggingface.co/datasets/ori-drs/silvr_data/tree/main), setup the [config file](./scripts/config_train.yaml), and then run the training script.
